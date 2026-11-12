@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, View, StatusBar } from 'react-native';
 import { supabase } from './src/services/supabase';
 import LoginScreen from './src/screens/LoginScreen';
 import CrudConductoresScreen from './src/screens/CrudConductoresScreen';
@@ -17,6 +17,7 @@ import { appStyles as styles } from './src/styles/appStyles';
 export default function App() {
   const [cargando, setCargando] = useState<boolean>(true);
   const [usuarioActivo, setUsuarioActivo] = useState<UsuarioGestion | null>(null);
+  const [esInvitado, setEsInvitado] = useState<boolean>(false);
   const [usuariosLista, setUsuariosLista] = useState<UsuarioGestion[]>([]);
   const [vistaActiva, setVistaActiva] = useState<'pasajero' | 'conductor' | 'garita' | 'admin' | 'crud_conductores' | 'crud_automoviles'>('pasajero');
 
@@ -24,6 +25,7 @@ export default function App() {
   const [datosTurnoConductor, setDatosTurnoConductor] = useState<DatosTurnoConductor>({
     patente: 'GH-89-21',
     ruta: '6023',
+    folio: '236023',
     origenDestino: 'René Olivares ⇄ Los Cancilleres (Maipú)',
     capacidad: 4,
   });
@@ -61,8 +63,9 @@ export default function App() {
 
     const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
+        setEsInvitado(false);
         await cargarDatosPerfil(session.user);
-      } else {
+      } else if (!esInvitado) {
         setUsuarioActivo(null);
         setVistaActiva('pasajero');
         setCargando(false);
@@ -171,6 +174,19 @@ export default function App() {
     );
   };
 
+  const handleAccesoInvitado = () => {
+    setEsInvitado(true);
+    setUsuarioActivo({
+      id: 'invitado-id',
+      nombre: 'Usuario Invitado',
+      correo: 'invitado@conatacoch.cl',
+      rolSolicitado: 'pasajero',
+      rolActual: 'pasajero',
+      estado: 'aprobado',
+    });
+    setVistaActiva('pasajero');
+  };
+
   const handleOcuparAsientoAutomatico = (patente: string) => {
     if (patente === datosTurnoConductor.patente && cuposConductor > 0) {
       setCuposConductor((prev) => Math.max(0, prev - 1));
@@ -210,44 +226,32 @@ export default function App() {
     setReportesGremiales((prev) => [nuevoItem, ...prev]);
   };
 
-  const handleCambiarEstadoReporte = (id: string, nuevoEstado: 'Pendiente' | 'Revisado' | 'Resuelto') => {
-    setReportesGremiales((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, estado: nuevoEstado } : r))
-    );
-  };
-
   const cerrarSesion = async () => {
     setCargando(true);
     setVistaActiva('pasajero');
-    await supabase.auth.signOut();
+    if (!esInvitado) {
+      await supabase.auth.signOut();
+    }
+    setEsInvitado(false);
     setUsuarioActivo(null);
     setCargando(false);
   };
 
   if (cargando) {
     return (
-      <View style={styles.pantallaCarga}>
-        <ActivityIndicator size="large" color="#38BDF8" />
+      <View style={[styles.pantallaCarga, { backgroundColor: '#231f1e' }]}>
+        <StatusBar barStyle="light-content" backgroundColor="#231f1e" />
+        <ActivityIndicator size="large" color="#41ba47" />
       </View>
     );
   }
 
-  // 1. Sin sesión activa
+  // 1. Sin sesión activa ni modo invitado
   if (!usuarioActivo) {
-    return <LoginScreen />;
+    return <LoginScreen onAccesoInvitado={handleAccesoInvitado} />;
   }
 
-  // 2. VISTA CRUD CONDUCTORES (Evaluación Parcial 3)
-  if (vistaActiva === 'crud_conductores') {
-    return <CrudConductoresScreen onVolver={() => setVistaActiva('admin')} />;
-  }
-
-  // 3. VISTA CRUD AUTOMÓVILES (Evaluación Parcial 3)
-  if (vistaActiva === 'crud_automoviles') {
-    return <CrudAutomovilesScreen onVolver={() => setVistaActiva('admin')} />;
-  }
-
-  // 4. VISTA CONDUCTOR
+  // 2. VISTA CONDUCTOR
   if (vistaActiva === 'conductor') {
     return (
       <ConductorScreen
@@ -268,29 +272,36 @@ export default function App() {
     );
   }
 
-  // 5. VISTA GARITA
+  // 3. VISTA GARITA
   if (vistaActiva === 'garita') {
     return (
       <GaritaScreen
         onVolver={() => setVistaActiva('pasajero')}
-        reportesExternos={reportesGremiales}
-        onAgregarReporte={(rep) => setReportesGremiales((prev) => [rep, ...prev])}
-        onCambiarEstadoReporte={handleCambiarEstadoReporte}
       />
     );
   }
 
-  // 6. VISTA ADMIN
+  // 4. VISTA ADMIN
   if (vistaActiva === 'admin' && usuarioActivo.rolActual === 'admin') {
     return (
       <AdminScreen
         usuarios={usuariosLista}
         onCerrarSesion={cerrarSesion}
         onCambiarEstado={cambiarEstadoUsuario}
-        onNavegarAVista={(v) => setVistaActiva(v)}
+        onNavegarAVista={(v) => setVistaActiva(v as any)}
         onRecargar={cargarTodosLosUsuarios}
       />
     );
+  }
+
+  // 5. CRUD CONDUCTORES
+  if (vistaActiva === 'crud_conductores') {
+    return <CrudConductoresScreen onVolver={() => setVistaActiva('admin')} />;
+  }
+
+  // 6. CRUD AUTOMÓVILES
+  if (vistaActiva === 'crud_automoviles') {
+    return <CrudAutomovilesScreen onVolver={() => setVistaActiva('admin')} />;
   }
 
   // 7. VISTA PASAJERO (Principal)
@@ -300,12 +311,14 @@ export default function App() {
       esAdmin={usuarioActivo.rolActual === 'admin'}
       nombreUsuario={usuarioActivo.nombre}
       correoUsuario={usuarioActivo.correo}
+      usuarioId={usuarioActivo.id}
       rolUsuario={usuarioActivo.rolActual}
-      onNavegarAVista={(v) => setVistaActiva(v)}
+      onNavegarAVista={(v) => setVistaActiva(v as any)}
       colectivoConductor={{
         cupos: cuposConductor,
         estado: estadoServicioConductor,
         conductorNombre: usuarioActivo.nombre,
+        folio: '236023',
       }}
       onOcuparAsientoAutomatico={handleOcuparAsientoAutomatico}
       onLiberarAsientoAutomatico={handleLiberarAsientoAutomatico}

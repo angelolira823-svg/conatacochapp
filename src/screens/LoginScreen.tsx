@@ -13,14 +13,18 @@ import {
   ScrollView,
   Modal,
   Image,
+  StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../services/supabase';
-import { loginStyles as styles } from '../styles/loginStyles';
 
 type ModoAcceso = 'login' | 'registro';
 
-export default function LoginScreen() {
+interface LoginScreenProps {
+  onAccesoInvitado?: () => void; // Callback para permitir el paso a la app como invitado
+}
+
+export default function LoginScreen({ onAccesoInvitado }: LoginScreenProps) {
   const [modo, setModo] = useState<ModoAcceso>('login');
   const [cargando, setCargando] = useState<boolean>(false);
 
@@ -37,6 +41,9 @@ export default function LoginScreen() {
   const [nuevaPassword, setNuevaPassword] = useState<string>('');
   const [mostrarNuevaPassword, setMostrarNuevaPassword] = useState<boolean>(false);
   const [procesandoRecuperacion, setProcesandoRecuperacion] = useState<boolean>(false);
+
+  // Estado del Modal de Advertencia para Invitados
+  const [modalInvitadoVisible, setModalInvitadoVisible] = useState<boolean>(false);
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -116,7 +123,6 @@ export default function LoginScreen() {
     }
   };
 
-  // Paso 1: Envía el código numérico mediante signInWithOtp
   const handleSolicitarCodigoOtp = async () => {
     if (!emailRecuperacion.trim()) {
       Alert.alert('Campo requerido', 'Ingresa tu correo electrónico registrado.');
@@ -150,7 +156,6 @@ export default function LoginScreen() {
     }
   };
 
-  // Paso 2: Valida el código numérico y actualiza la contraseña
   const handleVerificarOtpYCambiarClave = async () => {
     const tokenLimpio = codigoOtp.trim();
 
@@ -209,7 +214,7 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={styles.contenedor}>
-      <StatusBar barStyle="light-content" backgroundColor="#0B132B" />
+      <StatusBar barStyle="light-content" backgroundColor="#231f1e" />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
@@ -218,12 +223,12 @@ export default function LoginScreen() {
           contentContainerStyle={styles.scrollContenido}
           showsVerticalScrollIndicator={false}
         >
-          {/* Cabecera con el logo oficial */}
+          {/* Cabecera con identidad institucional */}
           <View style={styles.header}>
             <View style={styles.logoBadge}>
               <Image
                 source={require('../../assets/logo-conatacoch.png')}
-                style={{ width: 70, height: 70 }}
+                style={{ width: 75, height: 75 }}
                 resizeMode="contain"
               />
             </View>
@@ -260,7 +265,7 @@ export default function LoginScreen() {
                 <TextInput
                   style={styles.input}
                   placeholder="Ej: Juan Pérez"
-                  placeholderTextColor="#64748B"
+                  placeholderTextColor="#888888"
                   value={nombre}
                   onChangeText={setNombre}
                 />
@@ -272,7 +277,7 @@ export default function LoginScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="ejemplo@correo.cl"
-                placeholderTextColor="#64748B"
+                placeholderTextColor="#888888"
                 keyboardType="email-address"
                 autoCapitalize="none"
                 value={email}
@@ -286,7 +291,7 @@ export default function LoginScreen() {
                 <TextInput
                   style={styles.inputPassword}
                   placeholder="Mínimo 6 caracteres"
-                  placeholderTextColor="#64748B"
+                  placeholderTextColor="#888888"
                   secureTextEntry={!mostrarPassword}
                   value={password}
                   onChangeText={setPassword}
@@ -299,7 +304,7 @@ export default function LoginScreen() {
                   <Ionicons
                     name={mostrarPassword ? 'eye-outline' : 'eye-off-outline'}
                     size={22}
-                    color="#94A3B8"
+                    color="#ffffff"
                   />
                 </TouchableOpacity>
               </View>
@@ -314,7 +319,7 @@ export default function LoginScreen() {
                   setModalRecuperarVisible(true);
                 }}
               >
-                <Text style={{ color: '#38BDF8', fontSize: 13, fontWeight: '600' }}>
+                <Text style={{ color: '#41ba47', fontSize: 13, fontWeight: '600' }}>
                   ¿Olvidaste tu contraseña?
                 </Text>
               </TouchableOpacity>
@@ -326,12 +331,20 @@ export default function LoginScreen() {
               disabled={cargando}
             >
               {cargando ? (
-                <ActivityIndicator color="#0F172A" />
+                <ActivityIndicator color="#ffffff" />
               ) : (
                 <Text style={styles.textoBotonPrincipal}>
                   {modo === 'login' ? 'Acceder al Sistema' : 'Registrarme como Pasajero'}
                 </Text>
               )}
+            </TouchableOpacity>
+
+            {/* Opción de ingreso como Invitado */}
+            <TouchableOpacity
+              style={styles.botonInvitado}
+              onPress={() => setModalInvitadoVisible(true)}
+            >
+              <Text style={styles.textoBotonInvitado}>Ingresar como Invitado</Text>
             </TouchableOpacity>
           </View>
 
@@ -342,6 +355,43 @@ export default function LoginScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
+      {/* MODAL DE ADVERTENCIA DE RIESGO PARA INVITADOS */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={modalInvitadoVisible}
+        onRequestClose={() => setModalInvitadoVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTituloRiesgo}>⚠️ Advertencia de Uso como Invitado</Text>
+            <Text style={styles.modalTextoRiesgo}>
+              Estás ingresando a la red CONATACOCH en modo invitado. Utilizar la aplicación bajo este modo por un periodo prolongado conlleva los siguientes riesgos y limitaciones:
+              {'\n\n'}• Pérdida permanente de historiales de viajes y registros locales.
+              {'\n'}• Imposibilidad absoluta de sincronizar saldo digital y reservas a través de múltiples dispositivos.
+              {'\n'}• Restricciones operativas en flotas prioritarias y acreditaciones gremiales.
+            </Text>
+
+            <TouchableOpacity
+              style={styles.botonAceptarRiesgo}
+              onPress={() => {
+                setModalInvitadoVisible(false);
+                if (onAccesoInvitado) onAccesoInvitado();
+              }}
+            >
+              <Text style={styles.textoBotonAceptarRiesgo}>Acepto los Riesgos y Continuar</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.botonCancelarInvitado}
+              onPress={() => setModalInvitadoVisible(false)}
+            >
+              <Text style={styles.textoBotonCancelarInvitado}>Volver al Inicio de Sesión</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {/* Modal de Recuperación por Código OTP */}
       <Modal
         animationType="fade"
@@ -349,64 +399,26 @@ export default function LoginScreen() {
         visible={modalRecuperarVisible}
         onRequestClose={cerrarModalRecuperacion}
       >
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.75)',
-            justifyContent: 'center',
-            padding: 20,
-          }}
-        >
-          <View
-            style={{
-              backgroundColor: '#1E293B',
-              borderRadius: 16,
-              padding: 22,
-              borderWidth: 1.5,
-              borderColor: '#38BDF8',
-            }}
-          >
-            <Text
-              style={{
-                fontSize: 20,
-                fontWeight: 'bold',
-                color: '#FFFFFF',
-                textAlign: 'center',
-                marginBottom: 6,
-              }}
-            >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#ffffff', textAlign: 'center', marginBottom: 6 }}>
               🔑 Restablecer Contraseña
             </Text>
 
             {pasoRecuperacion === 'solicitar_codigo' ? (
               <>
-                <Text
-                  style={{
-                    fontSize: 13,
-                    color: '#94A3B8',
-                    textAlign: 'center',
-                    marginBottom: 18,
-                  }}
-                >
+                <Text style={{ fontSize: 13, color: '#cccccc', textAlign: 'center', marginBottom: 18 }}>
                   Ingresa tu correo. Recibirás un código numérico para recuperar tu acceso.
                 </Text>
 
                 <View style={{ marginBottom: 16 }}>
-                  <Text style={{ color: '#CBD5E1', fontSize: 13, fontWeight: 'bold', marginBottom: 6 }}>
+                  <Text style={{ color: '#ffffff', fontSize: 13, fontWeight: 'bold', marginBottom: 6 }}>
                     Correo Electrónico
                   </Text>
                   <TextInput
-                    style={{
-                      backgroundColor: '#0F172A',
-                      borderRadius: 8,
-                      padding: 12,
-                      color: '#FFFFFF',
-                      fontSize: 15,
-                      borderWidth: 1,
-                      borderColor: '#334155',
-                    }}
+                    style={styles.inputModal}
                     placeholder="ejemplo@correo.cl"
-                    placeholderTextColor="#64748B"
+                    placeholderTextColor="#888888"
                     keyboardType="email-address"
                     autoCapitalize="none"
                     value={emailRecuperacion}
@@ -415,56 +427,31 @@ export default function LoginScreen() {
                 </View>
 
                 <TouchableOpacity
-                  style={{
-                    backgroundColor: '#0284C7',
-                    paddingVertical: 14,
-                    borderRadius: 10,
-                    alignItems: 'center',
-                    marginBottom: 10,
-                  }}
+                  style={styles.botonPrincipal}
                   onPress={handleSolicitarCodigoOtp}
                   disabled={procesandoRecuperacion}
                 >
                   {procesandoRecuperacion ? (
-                    <ActivityIndicator color="#FFFFFF" />
+                    <ActivityIndicator color="#ffffff" />
                   ) : (
-                    <Text style={{ color: '#FFFFFF', fontWeight: 'bold', fontSize: 14 }}>
-                      ENVIAR CÓDIGO
-                    </Text>
+                    <Text style={styles.textoBotonPrincipal}>ENVIAR CÓDIGO</Text>
                   )}
                 </TouchableOpacity>
               </>
             ) : (
               <>
-                <Text
-                  style={{
-                    fontSize: 13,
-                    color: '#94A3B8',
-                    textAlign: 'center',
-                    marginBottom: 18,
-                  }}
-                >
-                  Código enviado a: <Text style={{ color: '#38BDF8', fontWeight: 'bold' }}>{emailRecuperacion}</Text>
+                <Text style={{ fontSize: 13, color: '#cccccc', textAlign: 'center', marginBottom: 18 }}>
+                  Código enviado a: <Text style={{ color: '#41ba47', fontWeight: 'bold' }}>{emailRecuperacion}</Text>
                 </Text>
 
                 <View style={{ marginBottom: 14 }}>
-                  <Text style={{ color: '#CBD5E1', fontSize: 13, fontWeight: 'bold', marginBottom: 6 }}>
+                  <Text style={{ color: '#ffffff', fontSize: 13, fontWeight: 'bold', marginBottom: 6 }}>
                     Código recibido por correo
                   </Text>
                   <TextInput
-                    style={{
-                      backgroundColor: '#0F172A',
-                      borderRadius: 8,
-                      padding: 12,
-                      color: '#FFFFFF',
-                      fontSize: 18,
-                      letterSpacing: 4,
-                      textAlign: 'center',
-                      borderWidth: 1,
-                      borderColor: '#38BDF8',
-                    }}
+                    style={[styles.inputModal, { fontSize: 18, letterSpacing: 4, textAlign: 'center' }]}
                     placeholder="12345678"
-                    placeholderTextColor="#64748B"
+                    placeholderTextColor="#888888"
                     keyboardType="numeric"
                     maxLength={10}
                     value={codigoOtp}
@@ -473,14 +460,14 @@ export default function LoginScreen() {
                 </View>
 
                 <View style={{ marginBottom: 16 }}>
-                  <Text style={{ color: '#CBD5E1', fontSize: 13, fontWeight: 'bold', marginBottom: 6 }}>
+                  <Text style={{ color: '#ffffff', fontSize: 13, fontWeight: 'bold', marginBottom: 6 }}>
                     Nueva Contraseña
                   </Text>
                   <View style={styles.contenedorInputPassword}>
                     <TextInput
                       style={styles.inputPassword}
                       placeholder="Mínimo 6 caracteres"
-                      placeholderTextColor="#64748B"
+                      placeholderTextColor="#888888"
                       secureTextEntry={!mostrarNuevaPassword}
                       value={nuevaPassword}
                       onChangeText={setNuevaPassword}
@@ -493,29 +480,21 @@ export default function LoginScreen() {
                       <Ionicons
                         name={mostrarNuevaPassword ? 'eye-outline' : 'eye-off-outline'}
                         size={22}
-                        color="#94A3B8"
+                        color="#ffffff"
                       />
                     </TouchableOpacity>
                   </View>
                 </View>
 
                 <TouchableOpacity
-                  style={{
-                    backgroundColor: '#10B981',
-                    paddingVertical: 14,
-                    borderRadius: 10,
-                    alignItems: 'center',
-                    marginBottom: 10,
-                  }}
+                  style={styles.botonPrincipal}
                   onPress={handleVerificarOtpYCambiarClave}
                   disabled={procesandoRecuperacion}
                 >
                   {procesandoRecuperacion ? (
-                    <ActivityIndicator color="#FFFFFF" />
+                    <ActivityIndicator color="#ffffff" />
                   ) : (
-                    <Text style={{ color: '#FFFFFF', fontWeight: 'bold', fontSize: 14 }}>
-                      CONFIRMAR NUEVA CONTRASEÑA
-                    </Text>
+                    <Text style={styles.textoBotonPrincipal}>CONFIRMAR NUEVA CONTRASEÑA</Text>
                   )}
                 </TouchableOpacity>
 
@@ -524,7 +503,7 @@ export default function LoginScreen() {
                   onPress={() => setPasoRecuperacion('solicitar_codigo')}
                   disabled={procesandoRecuperacion}
                 >
-                  <Text style={{ color: '#38BDF8', fontSize: 12 }}>¿No llegó? Solicitar otro código</Text>
+                  <Text style={{ color: '#41ba47', fontSize: 12 }}>¿No llegó? Solicitar otro código</Text>
                 </TouchableOpacity>
               </>
             )}
@@ -534,7 +513,7 @@ export default function LoginScreen() {
               onPress={cerrarModalRecuperacion}
               disabled={procesandoRecuperacion}
             >
-              <Text style={{ color: '#94A3B8', fontSize: 13 }}>Cancelar</Text>
+              <Text style={{ color: '#888888', fontSize: 13 }}>Cancelar</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -543,3 +522,199 @@ export default function LoginScreen() {
   );
 }
 
+const styles = StyleSheet.create({
+  contenedor: {
+    flex: 1,
+    backgroundColor: '#231f1e', // Negro institucional
+  },
+  scrollContenido: {
+    padding: 20,
+    justifyContent: 'center',
+    flexGrow: 1,
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  logoBadge: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 10,
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: '#41ba47', // Verde institucional
+  },
+  tituloApp: {
+    color: '#ffffff',
+    fontSize: 24,
+    fontWeight: 'bold',
+    letterSpacing: 1.5,
+  },
+  subtituloApp: {
+    color: '#cccccc',
+    fontSize: 11,
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  cajaTabs: {
+    flexDirection: 'row',
+    backgroundColor: '#332d2c',
+    borderRadius: 10,
+    padding: 4,
+    marginBottom: 16,
+  },
+  botonTab: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  botonTabActivo: {
+    backgroundColor: '#41ba47', // Verde institucional
+  },
+  textoTab: {
+    color: '#888888',
+    fontWeight: 'bold',
+    fontSize: 13,
+  },
+  textoTabActivo: {
+    color: '#ffffff',
+  },
+  tarjetaForm: {
+    backgroundColor: '#332d2c',
+    borderRadius: 14,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: '#41ba47',
+  },
+  campoForm: {
+    marginBottom: 14,
+  },
+  label: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginBottom: 6,
+  },
+  input: {
+    backgroundColor: '#231f1e',
+    borderRadius: 8,
+    padding: 12,
+    color: '#ffffff',
+    fontSize: 14,
+    borderWidth: 1,
+    borderColor: '#44403f',
+  },
+  contenedorInputPassword: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#231f1e',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#44403f',
+  },
+  inputPassword: {
+    flex: 1,
+    padding: 12,
+    color: '#ffffff',
+    fontSize: 14,
+  },
+  botonOjo: {
+    paddingHorizontal: 12,
+  },
+  botonPrincipal: {
+    backgroundColor: '#41ba47', // Verde institucional
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 6,
+  },
+  textoBotonPrincipal: {
+    color: '#ffffff',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  botonInvitado: {
+    backgroundColor: 'transparent',
+    borderWidth: 1.5,
+    borderColor: '#41ba47',
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  textoBotonInvitado: {
+    color: '#41ba47',
+    fontWeight: 'bold',
+    fontSize: 13,
+  },
+  footer: {
+    alignItems: 'center',
+    marginTop: 24,
+  },
+  textoFooter: {
+    color: '#888888',
+    fontSize: 11,
+  },
+  subTextoFooter: {
+    color: '#41ba47',
+    fontSize: 10,
+    fontWeight: 'bold',
+    marginTop: 2,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  modalCard: {
+    backgroundColor: '#332d2c',
+    borderRadius: 16,
+    padding: 22,
+    borderWidth: 1.5,
+    borderColor: '#41ba47',
+  },
+  modalTituloRiesgo: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#ffffff',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  modalTextoRiesgo: {
+    fontSize: 12,
+    color: '#dddddd',
+    lineHeight: 18,
+    marginBottom: 20,
+  },
+  botonAceptarRiesgo: {
+    backgroundColor: '#41ba47',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  textoBotonAceptarRiesgo: {
+    color: '#ffffff',
+    fontWeight: 'bold',
+    fontSize: 13,
+  },
+  botonCancelarInvitado: {
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  textoBotonCancelarInvitado: {
+    color: '#888888',
+    fontSize: 13,
+  },
+  inputModal: {
+    backgroundColor: '#231f1e',
+    borderRadius: 8,
+    padding: 12,
+    color: '#ffffff',
+    fontSize: 15,
+    borderWidth: 1,
+    borderColor: '#44403f',
+  },
+});
