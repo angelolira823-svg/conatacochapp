@@ -1,0 +1,49 @@
+{
+  "expo": {
+    "name": "ConatacochApp",
+    "slug": "ConatacochApp",
+    "scheme": "conatacochapp",
+    "version": "1.0.3",
+    "orientation": "portrait",
+    "icon": "./assets/logo-conatacoch.png",
+    "userInterfaceStyle": "light",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/14ff10be-0460-44fd-bd78-09858ed4c303"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "config": {
+        "googleMapsApiKey": "AIzaSyDu_Ry_MlPK4jX2reHwb23KOOoUR1RuVnE"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/logo-conatacoch.png",
+        "backgroundColor": "#FFFFFF"
+      },
+      "package": "com.tuusuario.conatacochapp",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyDu_Ry_MlPK4jX2reHwb23KOOoUR1RuVnE"
+        }
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "14ff10be-0460-44fd-bd78-09858ed4c303"
+      }
+    },
+    "plugins": [
+      "expo-font",
+      "expo-asset",
+      "expo-status-bar"
+    ]
+  }
+}
+
