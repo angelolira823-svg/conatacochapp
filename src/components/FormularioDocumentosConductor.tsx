@@ -8,7 +8,9 @@ import {
   ActivityIndicator,
   Alert,
   ScrollView,
+  Platform,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { supabase } from '../services/supabase';
 
 interface Props {
@@ -51,6 +53,35 @@ export default function FormularioDocumentosConductor({
 
   const [subiendo, setSubiendo] = useState<boolean>(false);
 
+  // Estados para manejar los selectores de fecha desplegables
+  const [fechaTemporal, setFechaTemporal] = useState<Date>(new Date());
+  const [campoFechaActivo, setCampoFechaActivo] = useState<
+    | 'fechaIncorporacion'
+    | 'fechaObtencionLicencia'
+    | 'fechaVencimientoLicencia'
+    | 'vencimientoPermiso'
+    | 'vencimientoRevision'
+    | 'vencimientoSoap'
+    | null
+  >(null);
+
+  const alCambiarFecha = (event: any, date?: Date) => {
+    if (Platform.OS === 'android') {
+      setCampoFechaActivo(null); // Cierra automáticamente en Android
+    }
+    if (date) {
+      setFechaTemporal(date);
+      const fechaFormateada = date.toISOString().split('T')[0];
+
+      if (campoFechaActivo === 'fechaIncorporacion') setFechaIncorporacion(fechaFormateada);
+      if (campoFechaActivo === 'fechaObtencionLicencia') setFechaObtencionLicencia(fechaFormateada);
+      if (campoFechaActivo === 'fechaVencimientoLicencia') setFechaVencimientoLicencia(fechaFormateada);
+      if (campoFechaActivo === 'vencimientoPermiso') setVencimientoPermiso(fechaFormateada);
+      if (campoFechaActivo === 'vencimientoRevision') setVencimientoRevision(fechaFormateada);
+      if (campoFechaActivo === 'vencimientoSoap') setVencimientoSoap(fechaFormateada);
+    }
+  };
+
   const handleEnviarDocumentacion = async () => {
     if (!rutInput.trim() || !nombreCompleto.trim() || !patente.trim()) {
       Alert.alert('Faltan Datos', 'Por favor ingresa tu Nombre, RUT y la Patente de tu vehículo.');
@@ -62,8 +93,8 @@ export default function FormularioDocumentosConductor({
     try {
       const patenteLimpia = patente.trim().toUpperCase();
 
-      // 1. Guardar o actualizar registro en el CRUD de Conductores (Supabase)
-      const { error: errConductor } = await supabase.from('conductores').upsert([
+      // 1. Guardar registro en el CRUD de Conductores usando insert
+      const { error: errConductor } = await supabase.from('conductores').insert([
         {
           nombre_completo: nombreCompleto.trim(),
           rut: rutInput.trim().toUpperCase(),
@@ -77,12 +108,12 @@ export default function FormularioDocumentosConductor({
           duracion_anos: duracionAnos ? parseInt(duracionAnos, 10) : null,
           fecha_vencimiento_licencia: fechaVencimientoLicencia.trim() || null,
         },
-      ], { onConflict: 'rut' });
+      ]);
 
       if (errConductor) console.log('Aviso en CRUD Conductores:', errConductor.message);
 
-      // 2. Registrar el vehículo en el CRUD de Automóviles (Requerido por INACAP)
-      const { error: errAuto } = await supabase.from('automoviles').upsert([
+      // 2. Registrar el vehículo en el CRUD de Automóviles usando insert
+      const { error: errAuto } = await supabase.from('automoviles').insert([
         {
           marca: marca.trim() || 'Nissan',
           modelo: modelo.trim() || 'V-16',
@@ -98,7 +129,7 @@ export default function FormularioDocumentosConductor({
           prima_soap: '7500',
           vencimiento_soap: vencimientoSoap.trim() || null,
         },
-      ], { onConflict: 'patente' });
+      ]);
 
       if (errAuto) console.log('Aviso en CRUD Automóviles:', errAuto.message);
 
@@ -121,7 +152,7 @@ export default function FormularioDocumentosConductor({
 
       const { error: dbError } = await supabase
         .from('documentacion_conductores')
-        .upsert(payloadDocumental, { onConflict: 'usuario_id' });
+        .insert([payloadDocumental]);
 
       if (dbError) throw dbError;
 
@@ -219,17 +250,14 @@ export default function FormularioDocumentosConductor({
           />
         </View>
 
+        {/* Fecha Incorporación (Selector) */}
         <View style={styles.cajaCampo}>
           <Text style={styles.labelCampo}>Fecha Incorporación CONATACOCH</Text>
-          <TextInput
-            style={styles.inputForm}
-            placeholder="AAAA-MM-DD"
-            placeholderTextColor="#64748B"
-            value={fechaIncorporacion}
-            onChangeText={(t) => setFechaIncorporacion(t.replace(/[^0-9-]/g, ''))}
-            keyboardType="numeric"
-            maxLength={10}
-          />
+          <TouchableOpacity style={styles.inputForm} onPress={() => setCampoFechaActivo('fechaIncorporacion')}>
+            <Text style={{ color: fechaIncorporacion ? '#FFFFFF' : '#64748B', fontSize: 13 }}>
+              {fechaIncorporacion || '📅 Seleccionar fecha'}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.cajaCampo}>
@@ -254,17 +282,14 @@ export default function FormularioDocumentosConductor({
           />
         </View>
 
+        {/* Fecha Obtención Licencia (Selector) */}
         <View style={styles.cajaCampo}>
           <Text style={styles.labelCampo}>Fecha de Obtención Licencia</Text>
-          <TextInput
-            style={styles.inputForm}
-            placeholder="AAAA-MM-DD"
-            placeholderTextColor="#64748B"
-            value={fechaObtencionLicencia}
-            onChangeText={(t) => setFechaObtencionLicencia(t.replace(/[^0-9-]/g, ''))}
-            keyboardType="numeric"
-            maxLength={10}
-          />
+          <TouchableOpacity style={styles.inputForm} onPress={() => setCampoFechaActivo('fechaObtencionLicencia')}>
+            <Text style={{ color: fechaObtencionLicencia ? '#FFFFFF' : '#64748B', fontSize: 13 }}>
+              {fechaObtencionLicencia || '📅 Seleccionar fecha'}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.cajaCampo}>
@@ -279,17 +304,14 @@ export default function FormularioDocumentosConductor({
           />
         </View>
 
+        {/* Fecha Vencimiento Licencia (Selector) */}
         <View style={styles.cajaCampo}>
           <Text style={styles.labelCampo}>Fecha de Vencimiento Licencia</Text>
-          <TextInput
-            style={styles.inputForm}
-            placeholder="AAAA-MM-DD"
-            placeholderTextColor="#64748B"
-            value={fechaVencimientoLicencia}
-            onChangeText={(t) => setFechaVencimientoLicencia(t.replace(/[^0-9-]/g, ''))}
-            keyboardType="numeric"
-            maxLength={10}
-          />
+          <TouchableOpacity style={styles.inputForm} onPress={() => setCampoFechaActivo('fechaVencimientoLicencia')}>
+            <Text style={{ color: fechaVencimientoLicencia ? '#FFFFFF' : '#64748B', fontSize: 13 }}>
+              {fechaVencimientoLicencia || '📅 Seleccionar fecha'}
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -355,45 +377,46 @@ export default function FormularioDocumentosConductor({
           />
         </View>
 
+        {/* Vencimiento Permiso (Selector) */}
         <View style={styles.cajaCampo}>
           <Text style={styles.labelCampo}>Vencimiento Permiso de Circulación</Text>
-          <TextInput
-            style={styles.inputForm}
-            placeholder="AAAA-MM-DD"
-            placeholderTextColor="#64748B"
-            value={vencimientoPermiso}
-            onChangeText={(t) => setVencimientoPermiso(t.replace(/[^0-9-]/g, ''))}
-            keyboardType="numeric"
-            maxLength={10}
-          />
+          <TouchableOpacity style={styles.inputForm} onPress={() => setCampoFechaActivo('vencimientoPermiso')}>
+            <Text style={{ color: vencimientoPermiso ? '#FFFFFF' : '#64748B', fontSize: 13 }}>
+              {vencimientoPermiso || '📅 Seleccionar fecha'}
+            </Text>
+          </TouchableOpacity>
         </View>
 
+        {/* Vencimiento Revisión (Selector) */}
         <View style={styles.cajaCampo}>
           <Text style={styles.labelCampo}>Vencimiento Revisión Técnica</Text>
-          <TextInput
-            style={styles.inputForm}
-            placeholder="AAAA-MM-DD"
-            placeholderTextColor="#64748B"
-            value={vencimientoRevision}
-            onChangeText={(t) => setVencimientoRevision(t.replace(/[^0-9-]/g, ''))}
-            keyboardType="numeric"
-            maxLength={10}
-          />
+          <TouchableOpacity style={styles.inputForm} onPress={() => setCampoFechaActivo('vencimientoRevision')}>
+            <Text style={{ color: vencimientoRevision ? '#FFFFFF' : '#64748B', fontSize: 13 }}>
+              {vencimientoRevision || '📅 Seleccionar fecha'}
+            </Text>
+          </TouchableOpacity>
         </View>
 
+        {/* Vencimiento SOAP (Selector) */}
         <View style={styles.cajaCampo}>
           <Text style={styles.labelCampo}>Vencimiento SOAP</Text>
-          <TextInput
-            style={styles.inputForm}
-            placeholder="AAAA-MM-DD"
-            placeholderTextColor="#64748B"
-            value={vencimientoSoap}
-            onChangeText={(t) => setVencimientoSoap(t.replace(/[^0-9-]/g, ''))}
-            keyboardType="numeric"
-            maxLength={10}
-          />
+          <TouchableOpacity style={styles.inputForm} onPress={() => setCampoFechaActivo('vencimientoSoap')}>
+            <Text style={{ color: vencimientoSoap ? '#FFFFFF' : '#64748B', fontSize: 13 }}>
+              {vencimientoSoap || '📅 Seleccionar fecha'}
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
+
+      {/* Renderizado condicional del componente DateTimePicker */}
+      {campoFechaActivo && (
+        <DateTimePicker
+          value={fechaTemporal}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={alCambiarFecha}
+        />
+      )}
 
       <TouchableOpacity
         style={[styles.botonEnviar, subiendo && { backgroundColor: '#334155' }]}
@@ -449,6 +472,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#334155',
     fontSize: 13,
+    justifyContent: 'center',
   },
   botonEnviar: {
     backgroundColor: '#0284C7',

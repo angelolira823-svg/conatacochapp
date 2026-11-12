@@ -83,7 +83,7 @@ export default function ConductorScreen({
   nombreConductor = 'Conductor en Turno',
   reportesColegas = [],
 }: ConductorScreenProps) {
-  // Patente parte vacía hasta que el chofer acreditado la configure o venga por props
+  // Inicialización limpia para forzar la carga dinámica desde Supabase
   const [patenteInput, setPatenteInput] = useState<string>(datosProp?.patente || '');
   const [folioSeleccionado, setFolioSeleccionado] = useState<string>(datosProp?.folio || '236023');
   const [rutaInput, setRutaInput] = useState<string>(datosProp?.ruta || '6023');
@@ -131,7 +131,7 @@ export default function ConductorScreen({
   const cuposActuales = cuposProp !== undefined ? cuposProp : cuposLocal;
   const estadoActual = estadoProp !== undefined ? estadoProp : estadoLocal;
 
-  // 1. Verificación por USUARIO (Auth ID) y consulta de la línea asignada por el Administrador
+  // 1. Verificación por USUARIO (Auth ID) y consulta estricta de la patente en Supabase
   useEffect(() => {
     const verificarUsuarioYDocumentacion = async () => {
       try {
@@ -169,7 +169,7 @@ export default function ConductorScreen({
             console.log('Aviso consultando linea_asignada:', e);
           }
 
-          // Consultar el estado de los documentos del chofer
+          // Consultar el estado de los documentos y la patente real del chofer en Supabase
           const { data, error } = await supabase
             .from('documentacion_conductores')
             .select('estado_validacion, patente')
@@ -181,6 +181,8 @@ export default function ConductorScreen({
             if (data.patente && !data.patente.startsWith('PENDIENTE-')) {
               setPatenteInput(data.patente);
               setModoEdicionTurno(false);
+            } else {
+              setModoEdicionTurno(true);
             }
           } else {
             setEstadoValidacion('pendiente_subida');
@@ -363,7 +365,6 @@ export default function ConductorScreen({
     }
   };
 
-  // 4. Confirmar turno: Aquí recién se registra la patente del auto seleccionado
   const handleGuardarTurno = async () => {
     if (!patenteInput.trim() || !rutaInput.trim() || !trayectoInput.trim()) {
       Alert.alert('Datos Incompletos', 'Ingresa la patente del colectivo y el trayecto asignado.');
@@ -789,7 +790,7 @@ export default function ConductorScreen({
               <Text style={styles.labelFormulario}>Patente del Colectivo</Text>
               <TextInput
                 style={styles.inputFormulario}
-                placeholder="Ej: FP-55-12 / JJ-14-55"
+                placeholder="Ej: KT-HF-56"
                 placeholderTextColor="#64748B"
                 autoCapitalize="characters"
                 value={patenteInput}
@@ -916,7 +917,14 @@ export default function ConductorScreen({
                 </View>
                 <Text style={styles.patenteGrande}>{patenteInput}</Text>
               </View>
-              <Text style={styles.trayectoTexto}>{trayectoInput}</Text>
+              
+              {/* Nombre del Conductor destacado en la tarjeta */}
+              <Text style={[styles.trayectoTexto, { color: '#38BDF8', fontWeight: 'bold', fontSize: 14, marginTop: 4 }]}>
+                👤 Conductor: {nombreConductor}
+              </Text>
+              <Text style={{ color: '#94A3B8', fontSize: 11, marginTop: 2 }}>
+                Trayecto: {trayectoInput}
+              </Text>
 
               <TouchableOpacity
                 activeOpacity={0.8}
